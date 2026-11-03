@@ -1,4 +1,4 @@
-export type ReservationStatus = "PENDING" | "APPROVED" | "REJECTED" | "CHECKED_IN";
+export type ReservationStatus = "PENDING" | "APPROVED" | "ACTIVATED" | "REJECTED" | "CHECKED_IN";
 export type OrderStatus = "PENDING" | "DELIVERED";
 export type PaymentStatus = "PENDING" | "SUBMITTED" | "PAID" | "REJECTED";
 
@@ -11,9 +11,12 @@ export interface ReservationSummary {
   phone: string;
   partySize: number;
   notes: string | null;
+  entryProductName?: string;
+  entryPriceCents?: number;
   status: ReservationStatus;
   paymentStatus: PaymentStatus;
   wristbandCode: string | null;
+  qrCode?: string | null;
   checkedInAt: string | null;
   createdAt: string;
 }

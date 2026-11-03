@@ -14,6 +14,9 @@ export async function PATCH(request: Request) {
         description: parsed.data.description,
         priceCents: parsed.data.priceCents,
         active: parsed.data.active,
+        eventDate: parsed.data.eventDate || null,
+        eventPlace: parsed.data.eventPlace || null,
+        includedItem: parsed.data.includedItem || null,
         isDemo: parsed.data.priceCents === 0 || parsed.data.name.toLocaleUpperCase("es-AR").includes("DEMO")
       }
     });

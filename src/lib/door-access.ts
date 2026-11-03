@@ -26,7 +26,7 @@ export async function activateAttendee(reservationId: string, presentedDni: stri
     include: { guests: { select: { fullName: true, dni: true, checkedInAt: true, wristbandCode: true } } }
   });
   if (!reservation) throw new DoorAccessError("No se encontró la reserva.", 404);
-  if (!["APPROVED", "CHECKED_IN"].includes(reservation.status) || reservation.paymentStatus !== "PAID") {
+  if (!["APPROVED", "ACTIVATED", "CHECKED_IN"].includes(reservation.status) || reservation.paymentStatus !== "PAID") {
     throw new DoorAccessError("La reserva no está aprobada con el pago verificado.", 409);
   }
 
@@ -52,11 +52,11 @@ export async function activateAttendee(reservationId: string, presentedDni: stri
   }
   const result = attendee.primary
     ? await prisma.reservation.updateMany({
-      where: { id: reservation.id, status: { in: ["APPROVED", "CHECKED_IN"] }, paymentStatus: "PAID", checkedInAt: null, wristbandCode: null },
+      where: { id: reservation.id, status: { in: ["APPROVED", "ACTIVATED", "CHECKED_IN"] }, paymentStatus: "PAID", checkedInAt: null, wristbandCode: null },
       data: { checkedInAt, wristbandCode }
     })
     : await prisma.reservationGuest.updateMany({
-      where: { reservationId: reservation.id, dni, checkedInAt: null, wristbandCode: null, reservation: { status: { in: ["APPROVED", "CHECKED_IN"] }, paymentStatus: "PAID" } },
+      where: { reservationId: reservation.id, dni, checkedInAt: null, wristbandCode: null, reservation: { status: { in: ["APPROVED", "ACTIVATED", "CHECKED_IN"] }, paymentStatus: "PAID" } },
       data: { checkedInAt, wristbandCode }
     });
   if (!result.count) throw new DoorAccessError("Esta persona ya ingresó o su pulsera ya fue activada.", 409);
@@ -66,7 +66,7 @@ export async function activateAttendee(reservationId: string, presentedDni: stri
     include: { guests: { select: { checkedInAt: true } } }
   });
   if (statusCheck.checkedInAt && statusCheck.guests.every((person) => person.checkedInAt)) {
-    await prisma.reservation.updateMany({ where: { id: reservation.id, status: "APPROVED", paymentStatus: "PAID" }, data: { status: "CHECKED_IN" } });
+    await prisma.reservation.updateMany({ where: { id: reservation.id, status: { in: ["APPROVED", "ACTIVATED"] }, paymentStatus: "PAID" }, data: { status: "CHECKED_IN" } });
   }
 
   const updated = await prisma.reservation.findUniqueOrThrow({

@@ -16,7 +16,10 @@ export function CatalogManager({ initialProducts }: { initialProducts: CatalogPr
       name: String(formData.get("name") ?? "").trim(),
       description: String(formData.get("description") ?? "").trim(),
       priceCents: Math.round(price * 100),
-      active: formData.get("active") === "on"
+      active: formData.get("active") === "on",
+      eventDate: String(formData.get("eventDate") ?? "").trim(),
+      eventPlace: String(formData.get("eventPlace") ?? "").trim(),
+      includedItem: String(formData.get("includedItem") ?? "").trim()
     };
     if (!Number.isFinite(price) || price < 0) {
       setMessage("Ingresá un precio válido, mayor o igual a cero.");
@@ -58,6 +61,23 @@ export function CatalogManager({ initialProducts }: { initialProducts: CatalogPr
             <span>Descripción</span>
             <input name="description" defaultValue={product.description ?? ""} maxLength={300} className="min-h-11 w-full rounded-xl border border-black/10 px-3" />
           </label>
+          {product.type === "ENTRY" && (
+            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+              <label className="block space-y-2 text-sm font-medium">
+                <span>Fecha del evento</span>
+                <input name="eventDate" type="date" defaultValue={product.eventDate ?? ""} className="min-h-11 w-full rounded-xl border border-black/10 px-3" />
+              </label>
+              <label className="block space-y-2 text-sm font-medium">
+                <span>Lugar del evento</span>
+                <input name="eventPlace" defaultValue={product.eventPlace ?? ""} maxLength={120} placeholder="Salón, dirección, localidad" className="min-h-11 w-full rounded-xl border border-black/10 px-3" />
+              </label>
+              <label className="block space-y-2 text-sm font-medium sm:col-span-2">
+                <span>Consumición incluida con la entrada (se retira en barra)</span>
+                <input name="includedItem" defaultValue={product.includedItem ?? ""} maxLength={80} placeholder="Ej.: 1 trago a elección" className="min-h-11 w-full rounded-xl border border-black/10 px-3" />
+              </label>
+              <p className="text-xs text-muted sm:col-span-2">Se incluyen en el mensaje de confirmación que recibe el cliente por WhatsApp y en la campanita.</p>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input name="active" type="checkbox" defaultChecked={product.active} />
             Activo para reservas

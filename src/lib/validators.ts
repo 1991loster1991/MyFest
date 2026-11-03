@@ -69,6 +69,38 @@ export const evaluateSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED"])
 });
 
+export const activationStatusSchema = z.object({
+  reservationId: z.string().min(1),
+  active: z.boolean()
+});
+
+const qrTargetSchema = z.string().trim().min(3, "Escaneá el QR del cliente").max(80);
+
+/** Puerta: al escanear el QR se elige Activar o Rechazar (con motivo). */
+export const doorScanSchema = z.object({ qrCode: qrTargetSchema });
+
+export const doorDecisionSchema = z.object({
+  qrCode: qrTargetSchema,
+  decision: z.enum(["ACTIVATE", "REJECT"]),
+  reason: z.string().trim().max(300).optional(),
+  reasonCode: z.enum(["MISSING_ID", "DRESS_CODE", "SAFETY_CONCERN", "CONDUCT", "CAPACITY_REACHED", "OTHER_OBJECTIVE_REASON", "NOT_ON_LIST", "PAYMENT_UNVERIFIED"]).optional()
+}).superRefine((data, context) => {
+  if (data.decision === "REJECT") {
+    const detail = data.reason?.trim() ?? "";
+    if (detail.length < 8 && !data.reasonCode) {
+      context.addIssue({ code: "custom", path: ["reason"], message: "Escribí una explicación breve del rechazo." });
+    }
+  }
+});
+
+export const barScanSchema = z.object({ qrCode: qrTargetSchema });
+
+export const barDeliverQrSchema = z.object({
+  qrCode: qrTargetSchema,
+  /** true cuando se desactiva el QR manualmente sin entregar (botón "Desactivar"). */
+  deactivateOnly: z.boolean().optional()
+});
+
 export const checkinSchema = z.object({
   reservationId: z.string().min(1).optional(),
   dni: dniSchema.optional(),
@@ -96,7 +128,10 @@ export const catalogUpdateSchema = z.object({
   name: z.string().trim().min(2).max(100),
   description: z.string().trim().max(300).optional(),
   priceCents: z.coerce.number().int().min(0).max(100000000),
-  active: z.boolean()
+  active: z.boolean(),
+  eventDate: z.preprocess((value) => value == null ? "" : value, z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Usá el formato AAAA-MM-DD"), z.literal("")])),
+  eventPlace: z.string().trim().max(120),
+  includedItem: z.string().trim().max(80).optional()
 });
 
 export const incidentSchema = z.object({

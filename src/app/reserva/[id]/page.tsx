@@ -7,8 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/Badge";
 import { PaymentReferenceForm } from "@/components/forms/PaymentReferenceForm";
 import { DrinkPurchaseForm } from "@/components/forms/DrinkPurchaseForm";
-import { formatMoney } from "@/lib/utils";
+import { formatDate, formatMoney } from "@/lib/utils";
 import { AttendeeIdentityList } from "@/components/ui/AttendeeIdentityList";
+import { currentEventLoads } from "@/lib/event-loads";
 import { ReservationStatusNotifications } from "@/components/ui/ReservationStatusNotifications";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,10 @@ export default async function ReservationPage({ params }: { params: Promise<{ id
     orderBy: { name: "asc" }
   });
   if (!reservation) notFound();
+  // Las cargas del evento guardan el QR permanente de cada persona y la consumición a retirar.
+  const loads = await currentEventLoads(reservation.id);
+  const pendingLoads = loads.filter((load) => !load.deactivatedAt && load.accessStatus !== "DELIVERED");
+  const deliveredLoads = loads.filter((load) => Boolean(load.deliveredAt));
 
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
@@ -48,15 +53,46 @@ export default async function ReservationPage({ params }: { params: Promise<{ id
         </div>
         <p className="mt-4 max-w-xl leading-7 text-muted">
           {reservation.status === "PENDING" && "Recibimos tu solicitud. El equipo del evento la está revisando."}
-          {reservation.status === "APPROVED" && reservation.paymentStatus !== "PAID" && "Tu solicitud fue aprobada. El ingreso se confirma cuando el equipo verifique el pago."}
+          {reservation.status === "APPROVED" && `Tu solicitud fue aceptada. Realizá la reserva por ${formatMoney(reservation.entryPriceCents * reservation.partySize)} y adjuntá el comprobante por WhatsApp. Aguardá la activación del equipo del evento.`}
+          {reservation.status === "ACTIVATED" && "Se aprobó su reserva. Te esperamos el día del evento con DNI en mano y vestimenta acorde; prohibido ropa deportiva. Presentá tu código QR único en la puerta."}
           {reservation.status === "APPROVED" && reservation.paymentStatus === "PAID" && "¡Tu entrada está confirmada! Presentá el código en la puerta."}
           {reservation.status === "REJECTED" && "Esta solicitud no pudo ser confirmada. Si necesitás ayuda, contactá al equipo del evento."}
           {reservation.status === "CHECKED_IN" && "Tu ingreso ya fue registrado. ¡Que disfrutes el evento!"}
         </p>
         <AttendeeIdentityList attendees={[
-          { role: "Titular", fullName: reservation.fullName, dni: reservation.dni, birthDate: reservation.birthDate?.toISOString() ?? null, checkedInAt: reservation.checkedInAt?.toISOString() ?? null, wristbandCode: reservation.wristbandCode },
-          ...reservation.guests.map((guest, index) => ({ role: `Acompañante ${index + 1}`, fullName: guest.fullName, dni: guest.dni, birthDate: guest.birthDate.toISOString(), checkedInAt: guest.checkedInAt?.toISOString() ?? null, wristbandCode: guest.wristbandCode }))
-        ]} partySize={reservation.partySize} reservationStatus={reservation.status} pendingLabel="Pendiente" showStatus={false} />
+          { role: "Titular", fullName: reservation.fullName, dni: reservation.dni, birthDate: reservation.birthDate?.toISOString() ?? null, checkedInAt: reservation.checkedInAt?.toISOString() ?? null, wristbandCode: reservation.wristbandCode, qrCode: reservation.qrCode },
+          ...reservation.guests.map((guest, index) => ({ role: `Acompañante ${index + 1}`, fullName: guest.fullName, dni: guest.dni, birthDate: guest.birthDate.toISOString(), checkedInAt: guest.checkedInAt?.toISOString() ?? null, wristbandCode: guest.wristbandCode, qrCode: guest.qrCode }))
+        ]} partySize={reservation.partySize} reservationStatus={reservation.status} showStatus={false} />
+        {(reservation.status === "ACTIVATED" || reservation.status === "CHECKED_IN") && pendingLoads.length > 0 && (
+          <section className="mt-7 rounded-2xl border border-emerald-900/10 bg-emerald-50 p-5" aria-label="Códigos QR de acceso">
+            <h2 className="text-lg font-bold">Tu acceso al evento</h2>
+            <p className="mt-1 text-sm text-emerald-900">Cada persona presenta su QR único junto con su DNI. Aclaramos que deberán concurrir con DNI en mano y vestimenta acorde; prohibido ropa deportiva.</p>
+            <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+              {pendingLoads.map((load) => (
+                <li key={load.id} className="flex flex-col items-center gap-2 rounded-xl bg-white p-4 text-center">
+                  <ClientQRCode value={load.qrCode} size={144} level="H" />
+                  <p className="font-semibold">{load.personName}</p>
+                  <p className="break-all font-mono text-[11px] text-muted">{load.qrCode}</p>
+                  {load.consumptionItem && <p className="text-xs text-muted">Consumición a retirar en barra: <strong>{load.consumptionItem}</strong></p>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {deliveredLoads.length > 0 && (
+          <section className="mt-5 rounded-2xl bg-paper p-5" aria-label="Consumiciones retiradas">
+            <h2 className="text-lg font-bold">Ya retiró su consumición</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {deliveredLoads.map((load) => (
+                <li key={load.id} className="flex flex-wrap justify-between gap-2 rounded-xl bg-white p-3">
+                  <span>{load.personName}{load.consumptionItem ? ` · ${load.consumptionItem}` : ""}</span>
+                  <span className="text-muted">Retirada: {formatDate(load.deliveredAt!)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted">El QR de este evento dejó de mostrarse al confirmarse el retiro.</p>
+          </section>
+        )}
         {reservation.status === "APPROVED" && (reservation.paymentStatus === "PENDING" || reservation.paymentStatus === "REJECTED") && (
           <div className="mt-7 rounded-2xl bg-paper p-5">
             <h2 className="text-lg font-bold">Entrada: {reservation.entryProductName}</h2>

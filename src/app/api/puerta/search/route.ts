@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const matches = await prisma.reservation.findMany({
       where: {
         paymentStatus: "PAID",
-        status: { in: ["APPROVED", "CHECKED_IN"] },
+        status: { in: ["ACTIVATED", "CHECKED_IN"] },
         OR: [
           { fullName: { contains: query, mode: "insensitive" } },
           { guests: { some: { fullName: { contains: query, mode: "insensitive" } } } },

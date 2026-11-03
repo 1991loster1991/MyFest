@@ -22,6 +22,24 @@ export function isStaffRole(value: unknown): value is StaffRole {
   return typeof value === "string" && STAFF_ROLES.includes(value as StaffRole);
 }
 
+export function parseStaffRole(value: unknown): StaffRole | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const roles: Record<string, StaffRole> = {
+    superadmin: "SUPERADMIN",
+    "super administrador": "SUPERADMIN",
+    "superadministrador": "SUPERADMIN",
+    admin: "ADMIN",
+    "administrador sectorial": "ADMIN",
+    puerta: "DOOR",
+    "puerta seguridad": "DOOR",
+    barra: "BAR",
+    caja: "CASHIER",
+    "caja ventas": "CASHIER"
+  };
+  return roles[normalized] ?? (isStaffRole(value.trim().toUpperCase()) ? value.trim().toUpperCase() as StaffRole : null);
+}
+
 export function isAdminSector(value: unknown): value is AdminSector {
   return typeof value === "string" && ADMIN_SECTORS.includes(value as AdminSector);
 }
@@ -84,7 +102,8 @@ export async function roleMatchesToken(role: string | undefined, token: string |
   if (!isStaffRole(role) || !token) return false;
   if (role === "ADMIN") return Boolean(await getAdminSession(token));
   const expected = getConfiguredRoleToken(role);
-  return Boolean(expected && expected === token);
+  const masterToken = getConfiguredRoleToken("SUPERADMIN");
+  return Boolean((expected && expected === token) || (role !== "SUPERADMIN" && masterToken && masterToken === token));
 }
 
 export async function roleHasSector(role: string | undefined, token: string | undefined, sector: AdminSector) {

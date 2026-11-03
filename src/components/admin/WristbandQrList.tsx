@@ -6,7 +6,9 @@ import { ClientQRCode } from "@/components/ui/ClientQRCode";
 type Wristband = { reservationId: string; name: string; dni: string; code: string; checkedInAt: string };
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(date);
 }
 
 export function WristbandQrList({ wristbands, eventName }: { wristbands: Wristband[]; eventName: string }) {

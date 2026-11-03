@@ -11,6 +11,7 @@ datasource db {
 enum ReservationStatus {
   PENDING
   APPROVED
+  ACTIVATED
   REJECTED
   CHECKED_IN
 }
@@ -55,6 +56,9 @@ model Reservation {
   entryPriceCents Int             @default(0)
   paymentStatus PaymentStatus     @default(PENDING)
   paymentReference String?
+  paymentConfirmedAt DateTime?
+  activatedAt   DateTime?
+  qrCode        String?            @unique
   wristbandCode String?            @unique
   checkedInAt   DateTime?
   createdAt     DateTime           @default(now())
@@ -62,6 +66,8 @@ model Reservation {
   orders        BarOrder[]
   incidents     AdmissionIncident[]
   guests        ReservationGuest[]
+  notifications ReservationNotification[]
+  eventLoads    EventLoad[]
 
   @@index([status, createdAt])
   @@index([paymentStatus, createdAt])
@@ -73,12 +79,57 @@ model ReservationGuest {
   fullName      String
   dni           String      @unique
   birthDate     DateTime    @db.Date
+  qrCode        String?     @unique
   wristbandCode String?
   checkedInAt   DateTime?
   createdAt     DateTime    @default(now())
   reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  eventLoads    EventLoad[]
 
   @@index([reservationId])
+}
+
+/// Carga de una persona (QR único y permanente) para un evento concreto.
+/// El QR se mantiene igual entre eventos: es el carné del cliente.
+model EventLoad {
+  id                String       @id @default(cuid())
+  reservationId     String
+  guestId           String?
+  personName        String
+  dni               String
+  qrCode            String
+  productName       String       @default("")
+  eventDate         String?
+  eventPlace        String?
+  consumptionItem   String?
+  /// PENDING (sin ingreso) · ADMITTED (activado en puerta) · REJECTED · DELIVERED
+  accessStatus      String       @default("PENDING")
+  rejectionReason   String?
+  admittedAt        DateTime?
+  deliveredAt       DateTime?
+  deactivatedAt     DateTime?
+  deactivatedBy     String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  reservation       Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  guest             ReservationGuest? @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@unique([reservationId, guestId])
+  @@index([accessStatus, createdAt])
+  @@index([dni])
+}
+
+model ReservationNotification {
+  id            String      @id @default(cuid())
+  reservationId String
+  kind          String
+  message       String
+  whatsappSent  Boolean     @default(false)
+  whatsappError String?
+  createdAt     DateTime    @default(now())
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId, createdAt])
 }
 
 model BarOrder {
@@ -106,6 +157,10 @@ model CatalogProduct {
   priceCents  Int         @default(0)
   active      Boolean     @default(true)
   isDemo      Boolean     @default(true)
+  eventDate   String?
+  eventPlace  String?
+  /// Consumición incluida con la entrada de este evento (se entrega en barra).
+  includedItem String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

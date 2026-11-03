@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { evaluateSchema } from "@/lib/validators";
+import { acceptedMessage, notifyReservation } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   const body: unknown = await request.json().catch(() => null);
@@ -14,7 +15,18 @@ export async function POST(request: Request) {
       where: { id: reservation.id },
       data: { status: parsed.data.decision }
     });
-    return NextResponse.json({ reservation: updated });
+    if (parsed.data.decision !== "APPROVED") return NextResponse.json({ reservation: updated });
+
+    // Al aprobarse se informa el total según la entrada elegida; el comprobante se adjunta
+    // por WhatsApp y el acceso queda pendiente hasta que administración lo active.
+    const message = acceptedMessage({
+      fullName: updated.fullName,
+      productName: updated.entryProductName,
+      quantity: updated.partySize,
+      totalCents: updated.entryPriceCents * updated.partySize
+    });
+    const delivery = await notifyReservation(updated.id, "ACCEPTED", message, updated.phone);
+    return NextResponse.json({ reservation: updated, notification: delivery.notification, whatsapp: delivery.whatsapp, message });
   } catch (error) {
     console.error("Could not evaluate reservation", error);
     return NextResponse.json({ error: "No se pudo actualizar la solicitud." }, { status: 500 });

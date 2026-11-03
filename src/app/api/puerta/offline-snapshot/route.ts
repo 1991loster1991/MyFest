@@ -4,15 +4,16 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const reservations = await prisma.reservation.findMany({
-      where: { status: "APPROVED", paymentStatus: "PAID" },
+      where: { status: { in: ["ACTIVATED", "CHECKED_IN"] }, paymentStatus: "PAID" },
       select: {
         id: true,
         fullName: true,
         dni: true,
         partySize: true,
+        qrCode: true,
         checkedInAt: true,
         wristbandCode: true,
-        guests: { select: { fullName: true, dni: true, checkedInAt: true, wristbandCode: true } }
+        guests: { select: { fullName: true, dni: true, qrCode: true, checkedInAt: true, wristbandCode: true } }
       },
       orderBy: { createdAt: "asc" }
     });

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { roleHasSector, roleMatchesToken, type AdminSector, type StaffRole } from "@/lib/auth";
 
+const ADMIN_PATH_SECTORS = ["/api/admin/puerta", "/api/admin/entrega"];
+
 function sectorForPath(pathname: string): AdminSector | null {
-  if (pathname === "/admin/solicitudes" || pathname.startsWith("/api/admin/evaluar")) return "RESERVATIONS";
+  if (ADMIN_PATH_SECTORS.some((prefix) => pathname.startsWith(prefix))) return "DOOR";
+  if (pathname === "/admin/solicitudes" || pathname.startsWith("/api/admin/evaluar") || pathname.startsWith("/api/admin/activar")) return "RESERVATIONS";
+  if (pathname === "/admin/qr-clientes" || pathname.startsWith("/api/admin/qr-cliente")) return null;
   if (pathname === "/admin/pagos" || pathname.startsWith("/api/admin/pagos")) return "PAYMENTS";
   if (pathname === "/admin/pulseras") return "DOOR";
   if (pathname === "/admin/productos" || pathname.startsWith("/api/admin/catalog")) return "PRODUCTS";
@@ -34,7 +38,8 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get("mauifest_staff_token")?.value;
   if (await roleMatchesToken(role, token) && allowedRoles.includes(role as StaffRole)) {
     const sector = sectorForPath(pathname);
-    if (!sector || await roleHasSector(role, token, sector)) return NextResponse.next();
+    // Cada perfil de sector ya está limitado por su token: el filtro de sectores aplica a ADMIN.
+    if (role !== "ADMIN" || !sector || await roleHasSector(role, token, sector)) return NextResponse.next();
     if (api) return NextResponse.json({ error: "Tu perfil no tiene acceso a este sector." }, { status: 403 });
     return new NextResponse("Tu perfil no tiene acceso a este sector. Volvé al panel para abrir tus accesos habilitados.", { status: 403 });
   }
