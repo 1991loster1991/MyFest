@@ -4,6 +4,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+function seekToMusicStart(audio: HTMLAudioElement) {
+  if (audio.readyState < HTMLMediaElement.HAVE_METADATA || !Number.isFinite(audio.duration)) return;
+  audio.currentTime = Math.min(10, Math.max(0, audio.duration - 0.25));
+}
+
 export default function WelcomeExperience({ destination }: { destination: string }) {
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -17,7 +22,21 @@ export default function WelcomeExperience({ destination }: { destination: string
     let cancelled = false;
     async function startAudio(audioElement: HTMLAudioElement) {
       try {
-        audioElement.currentTime = 10;
+        if (audioElement.readyState < HTMLMediaElement.HAVE_METADATA) {
+          await new Promise<void>((resolve, reject) => {
+            const onLoaded = () => { cleanup(); resolve(); };
+            const onError = () => { cleanup(); reject(new Error("No se pudo cargar la pista.")); };
+            const cleanup = () => {
+              audioElement.removeEventListener("loadedmetadata", onLoaded);
+              audioElement.removeEventListener("error", onError);
+            };
+            audioElement.addEventListener("loadedmetadata", onLoaded, { once: true });
+            audioElement.addEventListener("error", onError, { once: true });
+            audioElement.load();
+          });
+        }
+        if (cancelled) return;
+        seekToMusicStart(audioElement);
         audioElement.muted = false;
         await audioElement.play();
         if (!cancelled) {
@@ -28,6 +47,7 @@ export default function WelcomeExperience({ destination }: { destination: string
         if (cancelled) return;
         audioElement.muted = true;
         try {
+          seekToMusicStart(audioElement);
           await audioElement.play();
           if (!cancelled) {
             setMusicPlaying(true);
@@ -49,6 +69,7 @@ export default function WelcomeExperience({ destination }: { destination: string
     const audio = audioRef.current;
     if (!audio) return;
     if (audio.paused) {
+      seekToMusicStart(audio);
       audio.muted = false;
       void audio.play().then(() => {
         setMusicPlaying(true);
@@ -73,7 +94,7 @@ export default function WelcomeExperience({ destination }: { destination: string
 
   return (
     <div className="fixed inset-0 z-[100] flex min-h-svh items-center justify-center overflow-hidden bg-ink">
-      <audio ref={audioRef} src="/audio/sabado-rebelde.mp3" loop preload="auto" />
+      <audio ref={audioRef} src="/audio/sabado-rebelde.mp3" loop preload="auto" playsInline />
       <Image
         src="/mauifest-logo.jpg"
         alt=""
@@ -130,9 +151,10 @@ export default function WelcomeExperience({ destination }: { destination: string
         <button
           type="button"
           onClick={toggleMute}
+          aria-label={musicMuted || !musicPlaying ? "Activar sonido de la música" : "Silenciar música"}
           className="absolute bottom-[2%] right-[2%] z-10 rounded-full border border-white/35 bg-ink/80 px-3 py-2 text-[10px] font-semibold text-white shadow-lg backdrop-blur-sm transition hover:bg-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:px-4 sm:text-xs"
         >
-          {musicMuted || !musicPlaying ? "Activar sonido" : "Silenciar música"}
+          {musicMuted || !musicPlaying ? "♪ Activar sonido" : "Silenciar música"}
         </button>
       </div>
     </div>
