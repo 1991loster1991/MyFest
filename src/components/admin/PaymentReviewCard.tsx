@@ -15,6 +15,7 @@ type PaymentRecord = {
   totalCents: number;
   reference: string;
   reservationId: string;
+  receipt?: { url: string; name: string; createdAt: string; emailSent: boolean; emailError: string | null } | null;
 };
 
 export function PaymentReviewCard({ payment }: { payment: PaymentRecord }) {
@@ -57,6 +58,18 @@ export function PaymentReviewCard({ payment }: { payment: PaymentRecord }) {
         <div><dt className="text-muted">Referencia</dt><dd className="break-all font-mono">{payment.reference}</dd></div>
         <div><dt className="text-muted">Reserva</dt><dd className="break-all font-mono">{payment.reservationId}</dd></div>
       </dl>
+      {payment.receipt && (
+        <div className="mt-4 rounded-xl bg-paper p-3">
+          <p className="text-sm font-semibold">Comprobante adjunto</p>
+          {payment.receipt.url.startsWith("data:image/") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={payment.receipt.url} alt={`Comprobante de ${payment.buyerName}`} className="mt-2 max-h-80 w-auto rounded-lg border border-black/10" />
+          ) : (
+            <a href={payment.receipt.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block break-all text-sm font-semibold underline">Abrir {payment.receipt.name}</a>
+          )}
+          <p className="mt-2 text-xs text-muted">{payment.receipt.emailSent ? "Enviado por correo al equipo" : `Correo no enviado${payment.receipt.emailError ? `: ${payment.receipt.emailError}` : ""}`}</p>
+        </div>
+      )}
       <div className="mt-4 flex flex-col gap-2 min-[380px]:flex-row">
         <Button type="button" className="w-full min-[380px]:w-auto" disabled={busy} onClick={() => review("PAID")}>Confirmar pago</Button>
         <Button type="button" variant="danger" className="w-full min-[380px]:w-auto" disabled={busy} onClick={() => review("REJECTED")}>Rechazar</Button>

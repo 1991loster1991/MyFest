@@ -3,6 +3,8 @@ import { cn, formatStatus } from "@/lib/utils";
 export function Badge({ status, label }: { status: string; label?: string }) {
   const styles: Record<string, string> = {
     PENDING: "bg-amber-100 text-amber-800",
+    PENDING_PAYMENT: "bg-sky-100 text-sky-900",
+    PAYMENT_REVIEW: "bg-amber-100 text-amber-900",
     APPROVED: "bg-lime text-ink",
     ACTIVATED: "bg-emerald-100 text-emerald-900",
     REJECTED: "bg-red-100 text-red-800",

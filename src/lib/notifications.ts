@@ -183,3 +183,44 @@ export function whatsappLink(phone: string, message: string) {
   if (digits.length === 10) digits = `549${digits}`;
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
+
+type Attachment = { filename: string; contentBase64: string; contentType: string };
+
+/**
+ * Envía el comprobante por correo al buzón configurado (PAYMENT_NOTIFICATION_EMAIL).
+ * Usa la API HTTP de Resend para no agregar dependencias al proyecto.
+ */
+export async function sendPaymentEmail(input: {
+  subject: string;
+  text: string;
+  attachment?: Attachment;
+}): Promise<{ sent: boolean; error?: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.PAYMENT_NOTIFICATION_EMAIL;
+  const from = process.env.PAYMENT_EMAIL_FROM ?? "Maui Fest <onboarding@resend.dev>";
+  if (!apiKey || !to) {
+    return { sent: false, error: "Envío de correo no configurado (RESEND_API_KEY / PAYMENT_NOTIFICATION_EMAIL)." };
+  }
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to: to.split(",").map((address) => address.trim()).filter(Boolean),
+        subject: input.subject,
+        text: input.text,
+        ...(input.attachment
+          ? { attachments: [{ filename: input.attachment.filename, content: input.attachment.contentBase64 }] }
+          : {})
+      })
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      return { sent: false, error: `El correo fue rechazado (${response.status}). ${detail.slice(0, 200)}`.trim() };
+    }
+    return { sent: true };
+  } catch (error) {
+    return { sent: false, error: error instanceof Error ? error.message : "No se pudo enviar el correo." };
+  }
+}

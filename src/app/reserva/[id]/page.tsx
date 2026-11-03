@@ -109,6 +109,7 @@ export default async function ReservationPage({ params }: { params: Promise<{ id
               endpoint={`/api/reserva/${reservation.id}/payment`}
               alias={process.env.PAYMENT_ALIAS ?? ""}
               amount={reservation.entryPriceCents * reservation.partySize}
+              reservationId={reservation.id}
             />
           </div>
         )}

@@ -126,6 +126,11 @@ model ReservationNotification {
   message       String
   whatsappSent  Boolean     @default(false)
   whatsappError String?
+  /// Comprobante adjuntado por el cliente (imagen o PDF guardado como data URL).
+  attachmentUrl   String?
+  attachmentName  String?
+  emailSent     Boolean     @default(false)
+  emailError    String?
   createdAt     DateTime    @default(now())
   reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 

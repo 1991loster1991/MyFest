@@ -1,6 +1,6 @@
 import type { ReservationStatus } from "@/types";
 
-export type CustomerStage = "PENDING" | "PAYING" | "APPROVED" | "QUEUE" | "ADMITTED" | "REJECTED";
+export type CustomerStage = "PENDING" | "PENDING_PAYMENT" | "PAYMENT_REVIEW" | "APPROVED" | "QUEUE" | "ADMITTED" | "REJECTED";
 
 type StageInput = {
   status: ReservationStatus;
@@ -37,7 +37,8 @@ export function shiftDate(value: { year: string; month: string; day: string }, d
 /** Nombre del estado que ve el cliente. */
 export const STAGE_LABELS: Record<CustomerStage, string> = {
   PENDING: "Pendiente",
-  PAYING: "Abonando",
+  PENDING_PAYMENT: "Pendiente de pago",
+  PAYMENT_REVIEW: "Comprobante en revisión",
   APPROVED: "Aprobado",
   QUEUE: "En cola",
   ADMITTED: "Ingresado",
@@ -49,8 +50,10 @@ export function stageMessage(stage: CustomerStage, reservation: { fullName: stri
   switch (stage) {
     case "PENDING":
       return "Recibimos tu solicitud. El equipo del evento la está revisando.";
-    case "PAYING":
-      return `Tu solicitud fue aceptada. Realizá la reserva por ${reservation.totalCents > 0 ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(reservation.totalCents / 100) : "el monto indicado"} y adjuntá el comprobante por WhatsApp. Aguardá la activación del equipo del evento.`;
+    case "PENDING_PAYMENT":
+      return `Tu solicitud fue aprobada. Aboná ${reservation.totalCents > 0 ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(reservation.totalCents / 100) : "el monto indicado"} y luego adjuntá el comprobante. Apenas el equipo lo verifique, tu reserva quedará aprobada.`;
+    case "PAYMENT_REVIEW":
+      return "Recibimos tu comprobante y quedó en poder del equipo del evento. Te avisaremos cuando esté verificado.";
     case "APPROVED":
       return "Tu pago fue verificado y tu reserva está aprobada. El día del evento vas a pasar automáticamente a la cola de ingreso: presentate con DNI en mano y vestimenta acorde (prohibido ropa deportiva).";
     case "QUEUE":
@@ -74,7 +77,12 @@ export function customerStage({ status, paymentStatus, eventDate }: StageInput, 
 
   if (status === "CHECKED_IN") return "ADMITTED";
   if (status === "ACTIVATED") return isEventDay ? "QUEUE" : "APPROVED";
-  if (status === "APPROVED") return paymentStatus === "PAID" ? (isEventDay ? "QUEUE" : "APPROVED") : "PAYING";
+  if (status === "APPROVED") {
+    if (paymentStatus === "PAID") return isEventDay ? "QUEUE" : "APPROVED";
+    if (paymentStatus === "SUBMITTED") return "PAYMENT_REVIEW";
+    // Aprobada por el equipo pero todavía sin comprobante: debe abonar.
+    return "PENDING_PAYMENT";
+  }
   return "PENDING";
 }
 
