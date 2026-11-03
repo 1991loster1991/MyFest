@@ -100,10 +100,13 @@ export default async function ReservationPage({ params }: { params: Promise<{ id
             <p className="mt-2 text-xs text-muted">El QR de este evento dejó de mostrarse al confirmarse el retiro.</p>
           </section>
         )}
-        {reservation.status === "APPROVED" && (reservation.paymentStatus === "PENDING" || reservation.paymentStatus === "REJECTED") && (
+        {(reservation.status === "PENDING" || reservation.status === "APPROVED") && (reservation.paymentStatus === "PENDING" || reservation.paymentStatus === "REJECTED") && (
           <div className="mt-7 rounded-2xl bg-paper p-5">
             <h2 className="text-lg font-bold">Entrada: {reservation.entryProductName}</h2>
             <p className="mt-2 text-sm text-muted">{reservation.partySize} × {formatMoney(reservation.entryPriceCents)} = {formatMoney(reservation.entryPriceCents * reservation.partySize)}</p>
+            {reservation.status === "PENDING" && (
+              <p className="mt-2 rounded-lg bg-white p-2 text-xs text-muted">Podés adelantar el pago. El equipo verificará el comprobante junto con tu solicitud.</p>
+            )}
             {reservation.paymentStatus === "REJECTED" && <p className="mt-2 text-sm text-red-800">La referencia anterior no pudo verificarse. Podés informar una nueva transferencia.</p>}
             <PaymentReferenceForm
               endpoint={`/api/reserva/${reservation.id}/payment`}

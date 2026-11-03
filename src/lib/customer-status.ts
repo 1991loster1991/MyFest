@@ -53,7 +53,7 @@ export function stageMessage(stage: CustomerStage, reservation: { fullName: stri
     case "PENDING_PAYMENT":
       return `Tu solicitud fue aprobada. Aboná ${reservation.totalCents > 0 ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(reservation.totalCents / 100) : "el monto indicado"} y luego adjuntá el comprobante. Apenas el equipo lo verifique, tu reserva quedará aprobada.`;
     case "PAYMENT_REVIEW":
-      return "Recibimos tu comprobante y quedó en poder del equipo del evento. Te avisaremos cuando esté verificado.";
+      return "Recibimos tu comprobante y quedó en poder del equipo del evento. Te avisaremos cuando la solicitud y el pago estén verificados.";
     case "APPROVED":
       return "Tu pago fue verificado y tu reserva está aprobada. El día del evento vas a pasar automáticamente a la cola de ingreso: presentate con DNI en mano y vestimenta acorde (prohibido ropa deportiva).";
     case "QUEUE":
@@ -82,6 +82,12 @@ export function customerStage({ status, paymentStatus, eventDate }: StageInput, 
     if (paymentStatus === "SUBMITTED") return "PAYMENT_REVIEW";
     // Aprobada por el equipo pero todavía sin comprobante: debe abonar.
     return "PENDING_PAYMENT";
+  }
+  if (status === "PENDING") {
+    // Si ya adelantó el pago, el cliente ve que su comprobante está en revisión.
+    if (paymentStatus === "SUBMITTED") return "PAYMENT_REVIEW";
+    if (paymentStatus === "REJECTED") return "PENDING_PAYMENT";
+    return "PENDING";
   }
   return "PENDING";
 }

@@ -32,8 +32,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const reservation = await prisma.reservation.findUnique({ where: { id } });
     if (!reservation) return NextResponse.json({ error: "No se encontró la reserva." }, { status: 404 });
-    if (reservation.status !== "APPROVED") {
-      return NextResponse.json({ error: "La reserva debe estar aprobada antes de enviar el comprobante." }, { status: 409 });
+    if (reservation.status !== "APPROVED" && reservation.status !== "PENDING") {
+      return NextResponse.json({ error: "Esta solicitud no admite pagos en este momento." }, { status: 409 });
     }
     if (reservation.entryPriceCents <= 0) {
       return NextResponse.json({ error: "El precio de la entrada todavía no está configurado." }, { status: 409 });
