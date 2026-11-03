@@ -15,6 +15,8 @@ export default function WelcomeExperience({ destination }: { destination: string
   const [musicPlaying, setMusicPlaying] = useState(false);
   const [musicMuted, setMusicMuted] = useState(false);
   const [entering, setEntering] = useState(false);
+  const [audioError, setAudioError] = useState("");
+  const [audioNeedsActivation, setAudioNeedsActivation] = useState(false);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -42,10 +44,12 @@ export default function WelcomeExperience({ destination }: { destination: string
         if (!cancelled) {
           setMusicPlaying(true);
           setMusicMuted(false);
+          setAudioNeedsActivation(false);
         }
       } catch {
         if (cancelled) return;
         audioElement.muted = true;
+        if (!cancelled) setAudioNeedsActivation(true);
         try {
           seekToMusicStart(audioElement);
           await audioElement.play();
@@ -54,7 +58,10 @@ export default function WelcomeExperience({ destination }: { destination: string
             setMusicMuted(true);
           }
         } catch {
-          if (!cancelled) setMusicMuted(true);
+          if (!cancelled) {
+            setMusicMuted(true);
+            setAudioNeedsActivation(true);
+          }
         }
       }
     }
@@ -81,12 +88,40 @@ export default function WelcomeExperience({ destination }: { destination: string
     setMusicMuted(audio.muted);
   }
 
+  function activateSound() {
+    const audio = audioRef.current;
+    if (!audio) {
+      setAudioError("No se pudo acceder al reproductor de audio.");
+      return;
+    }
+
+    setAudioError("");
+    audio.muted = false;
+    if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      seekToMusicStart(audio);
+    } else {
+      audio.addEventListener("loadedmetadata", () => seekToMusicStart(audio), { once: true });
+    }
+
+    void audio.play().then(() => {
+      setMusicPlaying(true);
+      setMusicMuted(false);
+      setAudioNeedsActivation(false);
+    }).catch((playError: unknown) => {
+      audio.muted = true;
+      setMusicMuted(true);
+      setAudioNeedsActivation(true);
+      setAudioError(playError instanceof Error ? playError.message : "El navegador no permitió activar el sonido.");
+    });
+  }
+
   function enter() {
     if (entering) return;
+    const audio = audioRef.current;
     setEntering(true);
-    if (audioRef.current) {
-      audioRef.current.muted = true;
-      audioRef.current.pause();
+    if (audio) {
+      audio.muted = true;
+      audio.pause();
       setMusicPlaying(false);
     }
     router.push(destination);
@@ -140,22 +175,38 @@ export default function WelcomeExperience({ destination }: { destination: string
         </svg>
         <div aria-hidden="true" className="stage-flash stage-flash-left" />
         <div aria-hidden="true" className="stage-flash stage-flash-right" />
+        {audioNeedsActivation && (
+          <button
+            type="button"
+            onClick={activateSound}
+            className="absolute left-1/2 top-[7%] z-10 inline-flex min-h-12 min-w-48 -translate-x-1/2 items-center justify-center rounded-full border border-white/60 bg-ink px-8 text-sm font-bold uppercase tracking-[0.12em] text-white shadow-[0_8px_32px_rgba(0,0,0,0.45)] transition hover:bg-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+          >
+            ♪ Activar sonido
+          </button>
+        )}
         <button
           type="button"
-          onClick={enter}
+          onClick={() => void enter()}
           disabled={entering}
-          className="absolute left-1/2 top-[7%] z-10 inline-flex min-h-12 min-w-48 -translate-x-1/2 items-center justify-center rounded-full border border-gold bg-gold px-8 text-sm font-bold uppercase tracking-[0.18em] text-ink shadow-[0_8px_32px_rgba(0,0,0,0.45)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:opacity-70"
+          className={`absolute left-1/2 ${audioNeedsActivation ? "top-[16%]" : "top-[7%]"} z-10 inline-flex min-h-12 min-w-48 -translate-x-1/2 items-center justify-center rounded-full border border-gold bg-gold px-8 text-sm font-bold uppercase tracking-[0.18em] text-ink shadow-[0_8px_32px_rgba(0,0,0,0.45)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:opacity-70`}
         >
           {entering ? "Ingresando…" : "Ingresar"}
         </button>
-        <button
-          type="button"
-          onClick={toggleMute}
-          aria-label={musicMuted || !musicPlaying ? "Activar sonido de la música" : "Silenciar música"}
-          className="absolute bottom-[2%] right-[2%] z-10 rounded-full border border-white/35 bg-ink/80 px-3 py-2 text-[10px] font-semibold text-white shadow-lg backdrop-blur-sm transition hover:bg-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:px-4 sm:text-xs"
-        >
-          {musicMuted || !musicPlaying ? "♪ Activar sonido" : "Silenciar música"}
-        </button>
+        {audioError && (
+          <p role="alert" className="absolute left-1/2 top-[25%] z-10 w-[min(90%,24rem)] -translate-x-1/2 rounded-xl bg-white/95 p-3 text-center text-xs font-medium text-red-800 shadow-lg">
+            {audioError}
+          </p>
+        )}
+        {musicPlaying && !musicMuted && (
+          <button
+            type="button"
+            onClick={toggleMute}
+            aria-label="Silenciar música"
+            className="absolute bottom-[2%] right-[2%] z-10 rounded-full border border-white/35 bg-ink/80 px-3 py-2 text-[10px] font-semibold text-white shadow-lg backdrop-blur-sm transition hover:bg-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:px-4 sm:text-xs"
+          >
+            Silenciar música
+          </button>
+        )}
       </div>
     </div>
   );
