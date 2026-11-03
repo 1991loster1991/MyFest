@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHECKED_IN
+}
+
+enum OrderStatus {
+  PENDING
+  DELIVERED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUBMITTED
+  PAID
+  REJECTED
+}
+
+enum CatalogType {
+  ENTRY
+  DRINK
+}
+
+enum AdmissionIncidentReason {
+  CAPACITY_REACHED
+  MISSING_ID
+  DRESS_CODE
+  SAFETY_CONCERN
+  CONDUCT
+  OTHER_OBJECTIVE_REASON
+}
+
+model Reservation {
+  id            String            @id @default(cuid())
+  fullName      String
+  email         String
+  dni           String            @unique
+  birthDate     DateTime?         @db.Date
+  phone         String
+  partySize     Int               @default(1)
+  notes         String?
+  status        ReservationStatus @default(PENDING)
+  entryProductName String         @default("Entrada general (demo)")
+  entryPriceCents Int             @default(0)
+  paymentStatus PaymentStatus     @default(PENDING)
+  paymentReference String?
+  wristbandCode String?            @unique
+  checkedInAt   DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  orders        BarOrder[]
+  incidents     AdmissionIncident[]
+  guests        ReservationGuest[]
+
+  @@index([status, createdAt])
+  @@index([paymentStatus, createdAt])
+}
+
+model ReservationGuest {
+  id            String      @id @default(cuid())
+  reservationId String
+  fullName      String
+  dni           String      @unique
+  birthDate     DateTime    @db.Date
+  wristbandCode String?
+  checkedInAt   DateTime?
+  createdAt     DateTime    @default(now())
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
+}
+
+model BarOrder {
+  id            String      @id @default(cuid())
+  reservationId String
+  itemName      String
+  quantity      Int         @default(1)
+  status        OrderStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PAID)
+  paymentReference String?
+  unitPriceCents Int         @default(0)
+  deliveredAt   DateTime?
+  createdAt     DateTime    @default(now())
+  reservation  Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([paymentStatus, createdAt])
+}
+
+model CatalogProduct {
+  id          String      @id @default(cuid())
+  type        CatalogType
+  name        String
+  description String?
+  priceCents  Int         @default(0)
+  active      Boolean     @default(true)
+  isDemo      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([type, name])
+  @@index([type, active])
+}
+
+model AdmissionIncident {
+  id            String                 @id @default(cuid())
+  reservationId String?
+  reason        AdmissionIncidentReason
+  details       String?
+  operatorRole  String
+  createdAt     DateTime               @default(now())
+  reservation   Reservation?           @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt, reason])
+}
+
+model StaffAdmin {
+  id           String   @id @default(cuid())
+  name         String
+  alias        String   @unique(map: "StaffAdmin_email_key") @map("email")
+  passwordHash String
+  sectors      String[] @default([])
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([active, createdAt])
+}
+
+model EventPeriod {
+  id        String    @id @default(cuid())
+  name      String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  active    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([active, startedAt])
+}

@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-ink: #071b35;
+  --color-paper: #f7f4ef;
+  --color-gold: #c69a5b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.stage-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: stage-flash 8s ease-out infinite;
+}
+
+.stage-flash-left {
+  background: radial-gradient(ellipse at 14% 38%, rgba(255, 239, 198, 0.78), transparent 38%);
+}
+
+.stage-flash-right {
+  background: radial-gradient(ellipse at 88% 32%, rgba(255, 255, 255, 0.7), transparent 34%);
+  animation-delay: 2.7s;
+}
+
+.logo-lightning {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  filter: url(#lightning-glow);
+}
+
+.storm-bolt {
+  fill: none;
+  stroke: #e2c58e;
+  stroke-width: 0.34;
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
+  opacity: 0;
+  animation: thunder-flash 7.5s steps(1, end) infinite;
+}
+
+.storm-bolt-one {
+  stroke: #ead7b0;
+  animation-delay: 0.7s;
+}
+
+.storm-bolt-two {
+  stroke: #c5ad80;
+  animation-delay: 3.2s;
+}
+
+.storm-bolt-three {
+  stroke: #f0dfbd;
+  animation-delay: 5.1s;
+}
+
+@keyframes thunder-flash {
+  0%, 78%, 84%, 100% { opacity: 0; }
+  79% { opacity: 0.3; }
+  80% { opacity: 0.08; }
+  81% { opacity: 0.38; }
+  83% { opacity: 0; }
+}
+
+@keyframes stage-flash {
+  0%, 3%, 8%, 100% { opacity: 0; }
+  4% { opacity: 0.62; }
+  5% { opacity: 0.12; }
+  6% { opacity: 0.48; }
+  7% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-flash,
+  .storm-bolt {
+    animation: none;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .dashboard-report,
+  .dashboard-report * {
+    visibility: visible !important;
+  }
+
+  .wristband-document,
+  .wristband-document * {
+    visibility: visible !important;
+  }
+
+  .dashboard-report {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #111 !important;
+  }
+
+  .wristband-document {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .wristband-no-print {
+    display: none !important;
+  }
+
+  .wristband-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  .dashboard-report a {
+    color: #111 !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .dashboard-report .text-muted {
+    color: #555 !important;
+  }
+}
