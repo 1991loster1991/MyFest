@@ -199,6 +199,8 @@ model EventPeriod {
   startedAt DateTime  @default(now())
   endedAt   DateTime?
   active    Boolean   @default(false)
+  /// Habilita el formulario público de pre-reserva para el evento actual.
+  preReservaOpen Boolean @default(false)
   createdAt DateTime  @default(now())
 
   @@index([active, startedAt])

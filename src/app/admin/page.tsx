@@ -105,7 +105,7 @@ export default async function AdminPage() {
           ))}
         </div>
       </div>
-      {role === "SUPERADMIN" && <EventPeriodControls activePeriod={{ id: activePeriod.id, name: activePeriod.name, startedAt: activePeriod.startedAt.toISOString(), endedAt: activePeriod.endedAt?.toISOString() ?? null }} previousPeriods={previousPeriods.map((period) => ({ id: period.id, name: period.name, startedAt: period.startedAt.toISOString(), endedAt: period.endedAt?.toISOString() ?? null }))} />}
+      {role === "SUPERADMIN" && <EventPeriodControls activePeriod={{ id: activePeriod.id, name: activePeriod.name, startedAt: activePeriod.startedAt.toISOString(), endedAt: activePeriod.endedAt?.toISOString() ?? null }} previousPeriods={previousPeriods.map((period) => ({ id: period.id, name: period.name, startedAt: period.startedAt.toISOString(), endedAt: period.endedAt?.toISOString() ?? null }))} preReservaOpen={activePeriod.preReservaOpen} />}
       <div className="dashboard-no-print mt-8 rounded-2xl border border-black/5 bg-white p-6">
         <h2 className="text-lg font-bold">Operación</h2>
         <p className="mt-2 text-sm leading-6 text-muted">Revisá solicitudes, validá códigos de acceso y gestioná los pedidos de barra desde las pantallas dedicadas.</p>

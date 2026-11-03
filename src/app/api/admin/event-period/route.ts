@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export async function GET() {
+  try {
+    const period = await prisma.eventPeriod.findFirst({ where: { active: true }, orderBy: { startedAt: "desc" } });
+    return NextResponse.json({ preReservaOpen: Boolean(period?.preReservaOpen), name: period?.name ?? null });
+  } catch (error) {
+    console.error("Could not load pre-reservation gate", error);
+    return NextResponse.json({ preReservaOpen: false, name: null });
+  }
+}
+
 export async function POST(request: Request) {
   const body: unknown = await request.json().catch(() => null);
   const name = body && typeof body === "object" && "name" in body ? body.name : null;

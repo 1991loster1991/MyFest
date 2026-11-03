@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { LAST_RESERVATION_STORAGE_KEY } from "@/lib/reservation-tracking";
 import { readApiResponse } from "@/lib/client-api";
+import { preReservaGate } from "@/lib/customer-status";
 
 function maximumAdultBirthDate() {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -31,18 +32,53 @@ export function PreReservaForm() {
   const [partySize, setPartySize] = useState(1);
   const [checkingExistingReservation, setCheckingExistingReservation] = useState(true);
   const [maximumBirthDate, setMaximumBirthDate] = useState<string>();
+  // Inscripciones: permanecen bloqueadas hasta que admin/superadmin las habilite.
+  const [gate, setGate] = useState<{ open: boolean; reason: string } | null>(null);
 
   useEffect(() => {
     const reservationId = window.localStorage.getItem(LAST_RESERVATION_STORAGE_KEY);
-    if (reservationId) {
-      router.replace(`/reserva/${encodeURIComponent(reservationId)}`);
+    if (!reservationId) {
+      setCheckingExistingReservation(false);
       return;
     }
-    setCheckingExistingReservation(false);
+    // Si la reserva anterior ya terminó (evento pasado o retiro cerrado) se limpia el estado
+    // guardado y vuelve a aparecer el formulario para el próximo evento.
+    fetch(`/api/reserva/${encodeURIComponent(reservationId)}/notificaciones`, { cache: "no-store" })
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((result) => {
+        if (!result) {
+          window.localStorage.removeItem(LAST_RESERVATION_STORAGE_KEY);
+          setCheckingExistingReservation(false);
+          return;
+        }
+        const delivered = (result.loads ?? []).every((load: { deliveredAt: string | null }) => Boolean(load.deliveredAt));
+        const closed = result.reservation?.stage === "ADMITTED" && delivered;
+        if (closed) {
+          window.localStorage.removeItem(LAST_RESERVATION_STORAGE_KEY);
+          setCheckingExistingReservation(false);
+          return;
+        }
+        router.replace(`/reserva/${encodeURIComponent(reservationId)}`);
+      })
+      .catch(() => {
+        window.localStorage.removeItem(LAST_RESERVATION_STORAGE_KEY);
+        setCheckingExistingReservation(false);
+      });
   }, [router]);
 
   useEffect(() => {
     setMaximumBirthDate(maximumAdultBirthDate());
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/pre-reserva/estado", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((result: { open: boolean; eventDate: string | null }) => {
+        if (active) setGate(preReservaGate({ preReservaOpen: result.open, eventDate: result.eventDate }));
+      })
+      .catch(() => { if (active) setGate(preReservaGate(null)); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -93,12 +129,19 @@ export function PreReservaForm() {
     }
   }
 
-  if (checkingExistingReservation) {
+  const bloqueado = gate === null || !gate.open;
+
+  if (checkingExistingReservation || gate === null) {
     return <p role="status" className="text-sm text-muted">Buscando tu solicitud…</p>;
   }
 
   return (
     <form onSubmit={submit} className="space-y-4 [&_label]:space-y-1.5 [&_label]:text-xs [&_input]:min-h-9 [&_input]:rounded-lg [&_input]:px-3 [&_input]:text-sm">
+      {!gate.open && (
+        <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+          {gate.reason} El botón de envío se habilita automáticamente cuando el equipo abra las inscripciones.
+        </p>
+      )}
       <div className="grid gap-x-3 gap-y-3 sm:grid-cols-2">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink sm:col-span-2">Datos de la persona 1</p>
         <Input label="Nombre y apellido" name="fullName" autoComplete="name" required />
@@ -148,8 +191,8 @@ export function PreReservaForm() {
         </fieldset>
       )}
       {(error || catalogError) && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error || catalogError}</p>}
-      <Button type="submit" disabled={busy || products.length === 0} className="w-full sm:w-auto">
-        {busy ? "Enviando..." : "Enviar solicitud"}
+      <Button type="submit" disabled={busy || products.length === 0 || bloqueado} className="w-full sm:w-auto">
+        {busy ? "Enviando..." : bloqueado ? "Inscripciones cerradas" : "Enviar solicitud"}
       </Button>
       <p className="text-[10px] leading-4 text-muted">Evento para mayores de 18 años. Deberás registrar el nombre, DNI y fecha de nacimiento de cada persona. La pre-reserva queda sujeta a confirmación. Las opciones DEMO todavía no representan precios reales.</p>
     </form>

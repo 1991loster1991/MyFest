@@ -10,6 +10,8 @@ import { DrinkPurchaseForm } from "@/components/forms/DrinkPurchaseForm";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { AttendeeIdentityList } from "@/components/ui/AttendeeIdentityList";
 import { currentEventLoads } from "@/lib/event-loads";
+import { customerStage, STAGE_LABELS, shouldResetReservation, stageMessage } from "@/lib/customer-status";
+import { eventDetailsFor } from "@/lib/notifications";
 import { ReservationStatusNotifications } from "@/components/ui/ReservationStatusNotifications";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +31,11 @@ export default async function ReservationPage({ params }: { params: Promise<{ id
   const loads = await currentEventLoads(reservation.id);
   const pendingLoads = loads.filter((load) => !load.deactivatedAt && load.accessStatus !== "DELIVERED");
   const deliveredLoads = loads.filter((load) => Boolean(load.deliveredAt));
+  // Estado visible: Pendiente → Abonando → Aprobado → En cola (día del evento) → Ingresado.
+  const eventInfo = await eventDetailsFor(reservation.entryProductName);
+  const stage = customerStage({ status: reservation.status, paymentStatus: reservation.paymentStatus, eventDate: eventInfo.eventDate });
+  // Después de las 06:00 del día siguiente al evento el estado se limpia.
+  const expired = shouldResetReservation({ status: reservation.status, eventDate: eventInfo.eventDate });
 
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
@@ -48,17 +55,17 @@ export default async function ReservationPage({ params }: { params: Promise<{ id
           </div>
           <div className="flex items-center gap-2">
             <ReservationStatusNotifications reservationId={reservation.id} initialStatus={reservation.status} />
-            <Badge status={reservation.status} />
+            <Badge status={stage} label={STAGE_LABELS[stage]} />
           </div>
         </div>
         <p className="mt-4 max-w-xl leading-7 text-muted">
-          {reservation.status === "PENDING" && "Recibimos tu solicitud. El equipo del evento la está revisando."}
-          {reservation.status === "APPROVED" && `Tu solicitud fue aceptada. Realizá la reserva por ${formatMoney(reservation.entryPriceCents * reservation.partySize)} y adjuntá el comprobante por WhatsApp. Aguardá la activación del equipo del evento.`}
-          {reservation.status === "ACTIVATED" && "Se aprobó su reserva. Te esperamos el día del evento con DNI en mano y vestimenta acorde; prohibido ropa deportiva. Presentá tu código QR único en la puerta."}
-          {reservation.status === "APPROVED" && reservation.paymentStatus === "PAID" && "¡Tu entrada está confirmada! Presentá el código en la puerta."}
-          {reservation.status === "REJECTED" && "Esta solicitud no pudo ser confirmada. Si necesitás ayuda, contactá al equipo del evento."}
-          {reservation.status === "CHECKED_IN" && "Tu ingreso ya fue registrado. ¡Que disfrutes el evento!"}
+          {expired
+            ? "Este evento ya finalizó y tu solicitud quedó archivada. El equipo habilitará las inscripciones del próximo evento."
+            : stageMessage(stage, { fullName: reservation.fullName, partySize: reservation.partySize, entryProductName: reservation.entryProductName, totalCents: reservation.entryPriceCents * reservation.partySize })}
         </p>
+        {expired && (
+          <Link href="/pre-reserva" className="mt-4 inline-flex rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white">Volver al formulario</Link>
+        )}
         <AttendeeIdentityList attendees={[
           { role: "Titular", fullName: reservation.fullName, dni: reservation.dni, birthDate: reservation.birthDate?.toISOString() ?? null, checkedInAt: reservation.checkedInAt?.toISOString() ?? null, wristbandCode: reservation.wristbandCode, qrCode: reservation.qrCode },
           ...reservation.guests.map((guest, index) => ({ role: `Acompañante ${index + 1}`, fullName: guest.fullName, dni: guest.dni, birthDate: guest.birthDate.toISOString(), checkedInAt: guest.checkedInAt?.toISOString() ?? null, wristbandCode: guest.wristbandCode, qrCode: guest.qrCode }))

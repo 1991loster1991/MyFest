@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { reservationSchema } from "@/lib/validators";
+import { preReservaGate } from "@/lib/customer-status";
 
 export async function POST(request: Request) {
   const body: unknown = await request.json().catch(() => null);
@@ -9,6 +10,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos." }, { status: 400 });
   }
   try {
+    // El formulario solo acepta envíos cuando administración habilitó las inscripciones.
+    const period = await prisma.eventPeriod.findFirst({ where: { active: true }, orderBy: { startedAt: "desc" } });
+    const activeProduct = await prisma.catalogProduct.findFirst({ where: { type: "ENTRY", active: true }, orderBy: { name: "asc" } });
+    const gate = preReservaGate({ preReservaOpen: Boolean(period?.preReservaOpen), eventDate: activeProduct?.eventDate ?? null });
+    if (!gate.open) return NextResponse.json({ error: gate.reason }, { status: 403 });
     const guestDnis = parsed.data.guests.map((guest) => guest.dni);
     const existingGuest = await prisma.reservation.findFirst({
       where: {

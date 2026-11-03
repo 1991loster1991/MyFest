@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { currentEventLoads } from "@/lib/event-loads";
+import { customerStage, STAGE_LABELS } from "@/lib/customer-status";
 import {
   eventDetailsFor,
   eventLocation,
@@ -19,6 +20,7 @@ export async function GET(
         id: true,
         fullName: true,
         status: true,
+        paymentStatus: true,
         entryProductName: true,
         qrCode: true,
         notifications: {
@@ -33,6 +35,7 @@ export async function GET(
         { status: 404 },
       );
     const event = await eventDetailsFor(reservation.entryProductName);
+    const stage = customerStage({ status: reservation.status, paymentStatus: reservation.paymentStatus, eventDate: event.eventDate });
     const loads = await currentEventLoads(reservation.id);
     // El QR solo se muestra mientras esté vigente: oculto si se retiró la consumición o se desactivó.
     const activeLoad = loads.find((load) => !load.deactivatedAt && load.accessStatus !== "DELIVERED") ?? null;
@@ -41,6 +44,8 @@ export async function GET(
       reservation: {
         id: reservation.id,
         status: reservation.status,
+        stage,
+        stageLabel: STAGE_LABELS[stage],
         fullName: reservation.fullName,
       },
       notifications: reservation.notifications.map((notification) => ({

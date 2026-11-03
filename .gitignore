@@ -10,3 +10,4 @@ prisma/dev.db-journal
 .env
 .vercel
 .env*
+.devserver.log
