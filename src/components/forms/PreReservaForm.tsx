@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { LAST_RESERVATION_STORAGE_KEY } from "@/lib/reservation-tracking";
+import { readApiResponse } from "@/lib/client-api";
 
 function maximumAdultBirthDate() {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -27,14 +29,26 @@ export function PreReservaForm() {
   const [products, setProducts] = useState<Array<{ id: string; name: string; priceCents: number }>>([]);
   const [catalogError, setCatalogError] = useState("");
   const [partySize, setPartySize] = useState(1);
+  const [checkingExistingReservation, setCheckingExistingReservation] = useState(true);
+  const [maximumBirthDate, setMaximumBirthDate] = useState<string>();
+
+  useEffect(() => {
+    const reservationId = window.localStorage.getItem(LAST_RESERVATION_STORAGE_KEY);
+    if (reservationId) {
+      router.replace(`/reserva/${encodeURIComponent(reservationId)}`);
+      return;
+    }
+    setCheckingExistingReservation(false);
+  }, [router]);
+
+  useEffect(() => {
+    setMaximumBirthDate(maximumAdultBirthDate());
+  }, []);
 
   useEffect(() => {
     let active = true;
     fetch("/api/catalog?type=ENTRY")
-      .then(async (response) => {
-        if (!response.ok) throw new Error("No se pudieron cargar los tipos de entrada.");
-        return response.json();
-      })
+      .then((response) => readApiResponse<Array<{ id: string; name: string; priceCents: number }>>(response))
       .then((items: Array<{ id: string; name: string; priceCents: number }>) => {
         if (active) setProducts(items);
       })
@@ -69,14 +83,18 @@ export function PreReservaForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "No se pudo enviar la solicitud.");
+      const result = await readApiResponse<{ reservation: { id: string; status: string } }>(response);
+      window.localStorage.setItem(LAST_RESERVATION_STORAGE_KEY, result.reservation.id);
       router.push(`/reserva/${result.reservation.id}`);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Ocurrió un error.");
     } finally {
       setBusy(false);
     }
+  }
+
+  if (checkingExistingReservation) {
+    return <p role="status" className="text-sm text-muted">Buscando tu solicitud…</p>;
   }
 
   return (
@@ -91,7 +109,7 @@ export function PreReservaForm() {
           label="Fecha de nacimiento (solo mayores de 18)"
           name="birthDate"
           type="date"
-          max={maximumAdultBirthDate()}
+          max={maximumBirthDate}
           required
         />
         <Input label="Personas (máximo 10)" name="partySize" type="number" min="1" max="10" defaultValue={1} onChange={(event) => setPartySize(Number(event.target.value) || 1)} required />
@@ -123,7 +141,7 @@ export function PreReservaForm() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input label="Nombre y apellido" name={`guest-${index}-fullName`} autoComplete="name" required minLength={3} />
                 <Input label="DNI" name={`guest-${index}-dni`} inputMode="numeric" required minLength={6} />
-                <Input label="Fecha de nacimiento" name={`guest-${index}-birthDate`} type="date" max={maximumAdultBirthDate()} required />
+                <Input label="Fecha de nacimiento" name={`guest-${index}-birthDate`} type="date" max={maximumBirthDate} required />
               </div>
             </div>
           ))}

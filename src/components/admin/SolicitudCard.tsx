@@ -73,7 +73,7 @@ export function SolicitudCard({ reservation, paymentAlias, attendees }: { reserv
         <div className="min-w-0"><dt className="text-muted">Solicitud</dt><dd className="break-words font-semibold">{formatDate(reservation.createdAt)}</dd></div>
         <div><dt className="text-muted">Código</dt><dd className="break-all font-mono text-xs">{reservation.id}</dd></div>
       </dl>
-      <AttendeeIdentityList attendees={attendees} partySize={reservation.partySize} />
+      <AttendeeIdentityList attendees={attendees} partySize={reservation.partySize} reservationStatus={status} />
       {reservation.notes && <p className="mt-4 rounded-xl bg-paper p-3 text-sm">{reservation.notes}</p>}
       {status === "PENDING" && (
         <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">

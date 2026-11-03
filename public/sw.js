@@ -1,4 +1,4 @@
-const CACHE_NAME = "mauifest-door-v1";
+const CACHE_NAME = "mauifest-door-v2";
 const STATIC_PREFIX = "/_next/static/";
 const ASSETS = ["/manifest.webmanifest", "/favicon.ico", "/mauifest-logo.jpg"];
 
@@ -32,11 +32,12 @@ self.addEventListener("fetch", (event) => {
       if (response.ok && response.type === "basic") {
         const cache = await caches.open(CACHE_NAME);
         await cache.put(request, response.clone());
+        return response;
       }
-      return response;
+      const cached = await caches.match(request);
+      return cached || response;
     } catch {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(request);
+      const cached = await caches.match(request);
       if (cached) return cached;
       if (request.mode === "navigate" && url.pathname === "/puerta") {
         const doorPage = await cache.match("/puerta");

@@ -9,6 +9,7 @@ import { PaymentReferenceForm } from "@/components/forms/PaymentReferenceForm";
 import { DrinkPurchaseForm } from "@/components/forms/DrinkPurchaseForm";
 import { formatMoney } from "@/lib/utils";
 import { AttendeeIdentityList } from "@/components/ui/AttendeeIdentityList";
+import { ReservationStatusNotifications } from "@/components/ui/ReservationStatusNotifications";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,10 @@ export default async function ReservationPage({ params }: { params: Promise<{ id
             <p className="text-xs font-bold tracking-[0.18em] text-muted">ESTADO DE TU SOLICITUD</p>
             <h1 className="mt-3 break-words text-2xl font-black sm:text-3xl">{reservation.fullName}</h1>
           </div>
-          <Badge status={reservation.status} />
+          <div className="flex items-center gap-2">
+            <ReservationStatusNotifications reservationId={reservation.id} initialStatus={reservation.status} />
+            <Badge status={reservation.status} />
+          </div>
         </div>
         <p className="mt-4 max-w-xl leading-7 text-muted">
           {reservation.status === "PENDING" && "Recibimos tu solicitud. El equipo del evento la está revisando."}
@@ -52,7 +56,7 @@ export default async function ReservationPage({ params }: { params: Promise<{ id
         <AttendeeIdentityList attendees={[
           { role: "Titular", fullName: reservation.fullName, dni: reservation.dni, birthDate: reservation.birthDate?.toISOString() ?? null, checkedInAt: reservation.checkedInAt?.toISOString() ?? null, wristbandCode: reservation.wristbandCode },
           ...reservation.guests.map((guest, index) => ({ role: `Acompañante ${index + 1}`, fullName: guest.fullName, dni: guest.dni, birthDate: guest.birthDate.toISOString(), checkedInAt: guest.checkedInAt?.toISOString() ?? null, wristbandCode: guest.wristbandCode }))
-        ]} partySize={reservation.partySize} />
+        ]} partySize={reservation.partySize} reservationStatus={reservation.status} pendingLabel="Pendiente" showStatus={false} />
         {reservation.status === "APPROVED" && (reservation.paymentStatus === "PENDING" || reservation.paymentStatus === "REJECTED") && (
           <div className="mt-7 rounded-2xl bg-paper p-5">
             <h2 className="text-lg font-bold">Entrada: {reservation.entryProductName}</h2>
